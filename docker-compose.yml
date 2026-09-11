@@ -1,0 +1,57 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: fanghu-mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: fang_hu
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+    ports: ["3307:3306"]
+    volumes: ["fanghu_mysql:/var/lib/mysql"]
+  redis:
+    image: redis:7-alpine
+    container_name: fanghu-redis
+    ports: ["6379:6379"]
+    volumes: ["fanghu_redis:/data"]
+  minio:
+    image: minio/minio:latest
+    container_name: fanghu-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["fanghu_minio:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  minio-init:
+    image: minio/mc:latest
+    container_name: fanghu-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - mc alias set fanghu http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" && mc mb --ignore-existing fanghu/fanghu-private && mc anonymous set none fanghu/fanghu-private
+    restart: "no"
+  clamav:
+    image: clamav/clamav:stable
+    container_name: fanghu-clamav
+    restart: unless-stopped
+    ports: ["3310:3310"]
+    volumes: ["fanghu_clamav:/var/lib/clamav"]
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping=3"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 120s
+volumes:
+  fanghu_mysql:
+  fanghu_redis:
+  fanghu_minio:
+  fanghu_clamav:

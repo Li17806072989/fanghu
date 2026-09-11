@@ -1,0 +1,24 @@
+.entry-form .el-tree-select {
+  width: 100%;
+}
+
+.entry-form .el-tree-select input {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  width: auto;
+  min-width: 0;
+}
+
+.entry-form .el-tree-select .el-select__wrapper {
+  min-height: 44px;
+  border-radius: 4px;
+}
+
+.entry-form .field-error {
+  color: #a3341b;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}

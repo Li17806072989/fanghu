@@ -1,0 +1,8 @@
+.topic-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 15px;
+  border: 1px solid #dce2dd;
+  object-fit: cover;
+}

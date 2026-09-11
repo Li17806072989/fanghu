@@ -1,0 +1,21 @@
+target/
+node_modules/
+dist/
+.idea/
+*.iml
+.env
+*.log
+.runtime/
+
+# Local tools and nested upstream checkouts
+.feisuan/
+.impeccable/
+.ruoyi-upstream/
+.ruoyi-upstream-6x/
+
+# Rebuildable or local-only artifacts
+logs/
+*.rdb
+*.zip
+coverage/
+.DS_Store

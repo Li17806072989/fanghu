@@ -1,0 +1,471 @@
+:root {
+  --layout-content: 1200px;
+  --layout-shell: 1248px;
+  --layout-gutter: 24px;
+  --layout-section-gap: 24px;
+  --layout-page-top: 40px;
+  --layout-page-bottom: 64px;
+  --el-color-primary: #c5532d;
+  --el-color-primary-light-3: #d77e60;
+  --el-color-primary-light-5: #e2a995;
+  --el-color-primary-light-7: #efd0c5;
+  --el-color-primary-light-8: #f4e0d9;
+  --el-color-primary-light-9: #faf0ec;
+  --el-color-primary-dark-2: #9e4224;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+#app > main {
+  flex: 1 0 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+#app .topbar {
+  padding: 0;
+}
+
+#app .topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  width: min(calc(100% - 48px), var(--layout-content));
+  min-height: 68px;
+  margin: 0 auto;
+}
+
+#app .topbar-inner nav {
+  min-width: 0;
+}
+
+#app .topbar-inner .brand {
+  color: #fff;
+  text-decoration: none;
+}
+
+#app .topbar-inner .account-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 180px;
+  padding: 0;
+  border-bottom: 0;
+  color: #fff;
+  font-weight: 600;
+}
+
+#app .topbar-inner .account-identity .el-avatar {
+  flex: 0 0 auto;
+  background: #c5532d;
+  color: #fff;
+}
+
+#app .topbar-inner .account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#app .topbar-inner .logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  color: #d8e0dc;
+  font-size: 14px;
+}
+
+#app .topbar-inner .logout-button:hover {
+  border-bottom-color: #c5532d;
+  color: #fff;
+}
+
+#app :is(.catalog-shell, .supplier-workbench, .customer-workbench, .audit-admin, .lead-operations, .taxonomy-admin, .homepage-operations) {
+  width: 100%;
+  max-width: var(--layout-shell);
+  margin-right: auto;
+  margin-left: auto;
+  padding: var(--layout-page-top) var(--layout-gutter) var(--layout-page-bottom);
+}
+
+#app .form-page {
+  width: 100%;
+  max-width: 948px;
+  margin-right: auto;
+  margin-left: auto;
+  padding: var(--layout-page-top) var(--layout-gutter) var(--layout-page-bottom);
+}
+
+#app .upload-page {
+  width: min(calc(100% - 48px), 900px);
+  margin: var(--layout-page-top) auto var(--layout-page-bottom);
+  padding: 32px;
+}
+
+#app .login-page {
+  width: min(calc(100% - 48px), 440px);
+  margin: 64px auto;
+}
+
+#app .login-form .el-segmented {
+  width: 100%;
+}
+
+#app :is(.home-ad-band, .home-editorial) {
+  max-width: var(--layout-shell);
+}
+
+#app :is(.home-service-band, .workflow) {
+  width: min(calc(100% - 48px), var(--layout-content));
+  margin-right: auto;
+  margin-left: auto;
+}
+
+#app .home-service-band.supplier-only {
+  grid-template-columns: 1fr;
+}
+
+#app .home-hero {
+  padding: 58px 24px 62px;
+}
+
+#app .home-hero-inner {
+  display: grid;
+  grid-template-columns: 170px minmax(360px, 1fr) minmax(340px, 390px);
+  align-items: center;
+  gap: 34px;
+  width: min(100%, var(--layout-content));
+  margin: 0 auto;
+}
+
+#app .hero-logo {
+  display: block;
+  color: #fff;
+  text-decoration: none;
+}
+
+#app .hero-logo strong {
+  display: block;
+  font-size: 34px;
+  line-height: 1.15;
+}
+
+#app .hero-logo span {
+  display: block;
+  margin-top: 8px;
+  color: #c9d6d0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+#app .hero-copy {
+  min-width: 0;
+  text-align: center;
+}
+
+#app .hero-copy h1 {
+  max-width: none;
+  margin: 0;
+  font-size: 36px;
+}
+
+#app .hero-copy .lead {
+  max-width: 620px;
+  margin: 14px auto 0;
+  font-size: 16px;
+}
+
+#app .hero-search {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+#app .hero-search input {
+  min-width: 0;
+}
+
+#app .hero-search .search-action {
+  padding-right: 16px;
+  padding-left: 16px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  #app .home-hero-inner {
+    grid-template-columns: 140px minmax(320px, 1fr) minmax(300px, 350px);
+    gap: 24px;
+  }
+
+  #app .hero-copy h1 {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 900px) {
+  #app .home-hero-inner {
+    grid-template-columns: 140px minmax(0, 1fr);
+  }
+
+  #app .hero-search {
+    grid-column: 1 / -1;
+    justify-self: center;
+    max-width: 720px;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 620px) {
+  #app .home-hero-inner {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  #app .hero-logo {
+    text-align: center;
+  }
+
+  #app .hero-copy h1 {
+    font-size: 30px;
+  }
+
+  #app .hero-search {
+    grid-column: auto;
+    margin-top: 0;
+  }
+}
+
+#app .site-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid #ced5cf;
+  background: #e9ede9;
+  color: #344b43;
+}
+
+#app .footer-inner {
+  width: min(calc(100% - 48px), var(--layout-content));
+  margin: 0 auto;
+  padding: 28px 0 30px;
+  text-align: center;
+}
+
+#app .footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+}
+
+#app .footer-links a {
+  padding: 2px 14px;
+  border-right: 1px solid #aeb9b2;
+  color: #28627a;
+  font-size: 13px;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+#app .footer-links a:last-child {
+  border-right: 0;
+}
+
+#app .footer-links a:hover {
+  color: #a94020;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+#app .footer-contact {
+  display: flex;
+  justify-content: center;
+  gap: 8px 24px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  color: #52675e;
+  font-size: 13px;
+}
+
+#app .footer-copyright {
+  margin: 14px 0 0;
+  color: #60746a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+#app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  min-width: 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #aeb9b2;
+}
+
+#app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) > div:first-child {
+  min-width: 0;
+}
+
+#app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  line-height: 1.25;
+}
+
+#app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) p {
+  max-width: 72ch;
+  margin: 0;
+  color: #52675e;
+  line-height: 1.6;
+}
+
+#app :is(.heading-actions, .customer-actions, .audit-header-actions, .lead-header-actions, .taxonomy-header > div:last-child, .operations-heading > div:last-child) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+#app :is(.heading-actions, .customer-actions, .audit-header-actions, .lead-header-actions, .taxonomy-header > div:last-child, .operations-heading > div:last-child) .el-button {
+  margin: 0;
+}
+
+#app :is(.workbench-section, .customer-section, .audit-table-wrap, .lead-table-wrap, .taxonomy-table, .operations-section, .entry-form) {
+  min-width: 0;
+  border-color: #ced5cf;
+}
+
+#app :is(.workbench-section, .customer-section, .entry-form) {
+  padding: 24px;
+}
+
+#app :is(.section-heading, .operations-section-heading, .table-caption, .lead-caption) {
+  min-width: 0;
+}
+
+#app :is(.section-heading, .operations-section-heading) h2 {
+  line-height: 1.4;
+}
+
+#app :is(.form-row, .form-grid, .taxonomy-row, .taxonomy-form-row, .contact-grid, .ad-form-grid) {
+  align-items: start;
+}
+
+#app :is(.entry-form, .upload-page, .profile-section, .contact-form) :is(input, textarea, select, .el-input, .el-select, .el-tree-select, .el-date-editor) {
+  max-width: 100%;
+}
+
+#app .entry-form {
+  gap: 20px;
+}
+
+#app .entry-form > .primary-button {
+  margin-top: 4px;
+}
+
+#app :is(.audit-table-wrap, .lead-table-wrap, .taxonomy-table, .operations-section, .customer-section, .workbench-section) .el-table {
+  width: 100%;
+}
+
+#app :is(.pagination, .lead-pagination, .catalog-pagination) {
+  min-height: 58px;
+  align-items: center;
+}
+
+#app .el-dialog__body {
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+}
+
+@media (max-width: 980px) {
+  #app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #app :is(.heading-actions, .customer-actions, .audit-header-actions, .lead-header-actions, .taxonomy-header > div:last-child, .operations-heading > div:last-child) {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --layout-gutter: 16px;
+    --layout-page-top: 24px;
+    --layout-page-bottom: 48px;
+  }
+
+  #app .topbar-inner {
+    display: block;
+    width: calc(100% - 32px);
+    padding: 13px 0;
+  }
+
+  #app .topbar-inner .brand {
+    margin-bottom: 12px;
+  }
+
+  #app :is(.catalog-shell, .form-page, .supplier-workbench, .customer-workbench, .audit-admin, .lead-operations, .taxonomy-admin, .homepage-operations) {
+    padding: var(--layout-page-top) var(--layout-gutter) var(--layout-page-bottom);
+  }
+
+  #app .upload-page {
+    width: calc(100% - 32px);
+    margin: 24px auto 48px;
+    padding: 22px;
+  }
+
+  #app .login-page {
+    width: calc(100% - 32px);
+    margin: 30px auto 48px;
+  }
+
+  #app .footer-inner {
+    width: calc(100% - 32px);
+    padding: 24px 0 26px;
+  }
+
+  #app .footer-links a {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  #app :is(.home-hero, .home-main) {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  #app :is(.home-service-band, .workflow) {
+    width: calc(100% - 32px);
+  }
+
+  #app .workflow {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  #app :is(.workbench-section, .customer-section, .entry-form) {
+    padding: 20px;
+  }
+
+  #app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) h1 {
+    font-size: 27px;
+  }
+
+  #app :is(.page-heading, .workbench-heading, .customer-heading, .audit-header, .lead-header, .taxonomy-header, .operations-heading) {
+    padding-bottom: 18px;
+  }
+}
