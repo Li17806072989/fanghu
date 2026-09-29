@@ -1,0 +1,2 @@
+package org.dromara.fanghu.domain; import com.baomidou.mybatisplus.annotation.TableName; import lombok.Data;
+@Data @TableName("fh_supplier_company") public class SupplierCompany extends FanghuEntity { private Long ownerUserId; private String name; private String creditCode; private String intro; private String verificationStatus; private String serviceStatus; private java.math.BigDecimal ratingScore; }

@@ -1,8 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { CircleCheck, CircleClose, DataAnalysis, Download, Edit, Files, OfficeBuilding, Phone, Plus, Refresh, Upload } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { api } from '../api'
+import DetailContentEditor from '../components/DetailContentEditor.vue'
 import '../supplier-workbench.css'
 
 const loading = ref(true)
@@ -16,12 +17,15 @@ const categories = ref([])
 const equipmentTree = ref([])
 const sceneTree = ref([])
 const techTree = ref([])
+const detailEditor = ref(null)
+const coverFile = ref(null)
+const coverPreview = ref('')
 const profile = reactive({ name: '', creditCode: '', intro: '' })
 const editVisible = ref(false)
 const attachmentVisible = ref(false)
 const feedbackVisible = ref(false)
 const selectedFile = ref(null)
-const editForm = reactive({ id: null, title: '', categoryId: null, sceneTaxonomyIds: [], techTaxonomyIds: [], summary: '', content: '' })
+const editForm = reactive({ id: null, title: '', categoryId: null, sceneTaxonomyIds: [], techTaxonomyIds: [], summary: '', content: '', imageUrl: '', detailContent: '' })
 const attachmentForm = reactive({ solutionId: null })
 const feedbackForm = reactive({ id: null, demandTitle: '', status: 'CONTACTED', remark: '', nextActionAt: '' })
 
@@ -101,18 +105,44 @@ function editSolution(row) {
   Object.assign(editForm, { id: row.id, title: row.title, categoryId: row.categoryId,
     sceneTaxonomyIds: (row.taxonomyIds || []).filter(id => sceneIds.has(id)),
     techTaxonomyIds: (row.taxonomyIds || []).filter(id => techIds.has(id)),
-    summary: row.summary || '', content: row.content || '' })
+    summary: row.summary || '', content: row.content || '', imageUrl: row.imageUrl || '', detailContent: row.detailContent || '' })
+  coverFile.value = null
+  if (coverPreview.value?.startsWith('blob:')) URL.revokeObjectURL(coverPreview.value)
+  coverPreview.value = row.imageUrl || ''
   editVisible.value = true
+  nextTick(() => detailEditor.value?.reset(row.detailContent || ''))
+}
+function selectCover(upload) {
+  if (!upload?.file) return
+  if (!['image/jpeg', 'image/png', 'image/gif'].includes(upload.file.type)) { error.value = '封面仅支持 JPG、PNG 或 GIF'; return }
+  if (upload.file.size > 8 * 1024 * 1024) { error.value = '封面图片不能超过 8MB'; return }
+  coverFile.value = upload.file
+  if (coverPreview.value?.startsWith('blob:')) URL.revokeObjectURL(coverPreview.value)
+  coverPreview.value = URL.createObjectURL(upload.file)
 }
 async function saveSolution() {
   if (!editForm.title || !editForm.categoryId) { error.value = '请填写方案标题和装备分类'; return }
-  saving.value = true; error.value = ''
-  const sceneNames = flattenTree(sceneTree.value).filter(item => editForm.sceneTaxonomyIds.includes(item.id)).map(item => item.name)
-  const payload = { ...editForm, sceneTags: sceneNames.join(','), taxonomyIds: [...editForm.sceneTaxonomyIds, ...editForm.techTaxonomyIds] }
-  const response = await api(`/api/solutions/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-  if (response.ok) { editVisible.value = false; message.value = '方案已更新并重新进入审核队列'; await load() }
-  else error.value = (await response.json()).message || '方案保存失败'
-  saving.value = false
+  const detailError = detailEditor.value?.validate()
+  if (detailError) { error.value = detailError; return }
+  saving.value = true; error.value = ''; message.value = ''
+  try {
+    const sceneNames = flattenTree(sceneTree.value).filter(item => editForm.sceneTaxonomyIds.includes(item.id)).map(item => item.name)
+    const taxonomyIds = [...editForm.sceneTaxonomyIds, ...editForm.techTaxonomyIds]
+    const payload = { ...editForm, detailContent: detailEditor.value?.serialize({ excludePendingImages: true }), sceneTags: sceneNames.join(','), taxonomyIds }
+    let response = await api(`/api/solutions/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+    if (!response.ok) throw new Error((await response.json()).message || '方案保存失败')
+    const solution = await response.json()
+    if (coverFile.value) {
+      const data = new FormData(); data.append('file', coverFile.value)
+      const upload = await api(`/api/storage/upload?ownerType=SOLUTION_IMAGE&ownerId=${editForm.id}`, { method: 'POST', body: data })
+      if (!upload.ok) throw new Error('方案已保存，但封面上传失败，请重新编辑后继续上传')
+      const asset = await upload.json(); editForm.imageUrl = `/api/storage/public/${asset.id}`
+    }
+    await detailEditor.value?.upload('SOLUTION_DETAIL', editForm.id)
+    response = await api(`/api/solutions/${editForm.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...solution, ...editForm, detailContent: detailEditor.value?.serialize() || null, taxonomyIds, sceneTags: sceneNames.join(',') }) })
+    if (!response.ok) throw new Error('方案已保存，但详情内容保存失败，请重新编辑后继续上传')
+    editVisible.value = false; message.value = '方案已更新并重新进入审核队列'; await load()
+  } catch (e) { error.value = e.message || '方案保存失败' } finally { saving.value = false }
 }
 
 function openAttachment(row) { attachmentForm.solutionId = row.id; selectedFile.value = null; attachmentVisible.value = true }
@@ -274,7 +304,7 @@ onMounted(load)
           <section class="workbench-section">
             <div class="section-heading"><div><h2>解决方案</h2><p>编辑后将重新进入审核队列，已通过版本不再公开</p></div><RouterLink class="el-button el-button--primary" to="/workbench/solutions"><el-icon><Plus /></el-icon><span>新建方案</span></RouterLink></div>
             <el-table :data="data.solutions" empty-text="暂无解决方案">
-              <el-table-column prop="title" label="方案名称" min-width="230" />
+              <el-table-column label="方案名称" min-width="230"><template #default="{ row }"><RouterLink v-if="row.auditStatus === 'APPROVED'" :to="`/solutions/${row.id}`" class="solution-link">{{ row.title }}</RouterLink><span v-else>{{ row.title }}</span></template></el-table-column>
               <el-table-column label="分类" width="150"><template #default="{ row }">{{ categoryName(row.categoryId) }}</template></el-table-column>
               <el-table-column label="审核状态" width="110"><template #default="{ row }"><el-tag :type="statusType(row.auditStatus)" effect="plain">{{ statusLabel(row.auditStatus) }}</el-tag></template></el-table-column>
               <el-table-column label="更新时间" width="180"><template #default="{ row }">{{ formatDate(row.updatedAt) }}</template></el-table-column>
@@ -317,10 +347,11 @@ onMounted(load)
       </el-tabs>
     </template>
 
-    <el-dialog v-model="editVisible" title="编辑解决方案" width="min(680px, 92vw)">
-      <el-form label-position="top"><el-form-item label="方案标题" required><el-input v-model="editForm.title" maxlength="200" /></el-form-item><el-form-item label="装备分类" required><el-tree-select v-model="editForm.categoryId" :data="equipmentTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" check-strictly filterable :render-after-expand="false" style="width:100%" /></el-form-item><div class="form-grid"><el-form-item label="应用场景"><el-tree-select v-model="editForm.sceneTaxonomyIds" :data="sceneTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" multiple check-strictly filterable collapse-tags :render-after-expand="false" style="width:100%" /></el-form-item><el-form-item label="技术标签"><el-tree-select v-model="editForm.techTaxonomyIds" :data="techTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" multiple check-strictly filterable collapse-tags :render-after-expand="false" style="width:100%" /></el-form-item></div><el-form-item label="摘要"><el-input v-model="editForm.summary" type="textarea" :rows="3" maxlength="500" /></el-form-item><el-form-item label="方案正文"><el-input v-model="editForm.content" type="textarea" :rows="7" /></el-form-item></el-form>
+    <el-drawer v-model="editVisible" title="编辑解决方案" size="min(760px, 100%)" class="content-editor" destroy-on-close>
+      <el-form label-position="top"><el-form-item label="方案标题" required><el-input v-model="editForm.title" maxlength="200" /></el-form-item><el-form-item label="装备分类" required><el-tree-select v-model="editForm.categoryId" :data="equipmentTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" check-strictly filterable :render-after-expand="false" style="width:100%" /></el-form-item><div class="form-grid"><el-form-item label="应用场景"><el-tree-select v-model="editForm.sceneTaxonomyIds" :data="sceneTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" multiple check-strictly filterable collapse-tags :render-after-expand="false" style="width:100%" /></el-form-item><el-form-item label="技术标签"><el-tree-select v-model="editForm.techTaxonomyIds" :data="techTree" :props="{ label: 'name', children: 'children' }" node-key="id" value-key="id" multiple check-strictly filterable collapse-tags :render-after-expand="false" style="width:100%" /></el-form-item></div><el-form-item label="摘要"><el-input v-model="editForm.summary" type="textarea" :rows="3" maxlength="500" /></el-form-item><el-form-item label="方案封面"><div class="cover-field"><div v-if="coverPreview" class="cover-preview"><img :src="coverPreview" alt="方案封面预览"></div><el-upload :auto-upload="false" :limit="1" accept="image/jpeg,image/png,image/gif" :on-change="selectCover"><el-button>选择或更换封面</el-button></el-upload></div></el-form-item><el-form-item label="方案正文"><el-input v-model="editForm.content" type="textarea" :rows="7" /></el-form-item></el-form>
+      <DetailContentEditor ref="detailEditor" />
       <template #footer><el-button @click="editVisible=false">取消</el-button><el-button type="primary" :loading="saving" @click="saveSolution">保存并重新送审</el-button></template>
-    </el-dialog>
+    </el-drawer>
 
     <el-dialog v-model="attachmentVisible" title="上传方案附件" width="min(520px, 92vw)">
       <p class="dialog-note">文件将进入私有存储，通过安全扫描后才可按业务权限下载。</p>
@@ -337,5 +368,5 @@ onMounted(load)
 </template>
 
 <style scoped>
-.contact-detail{display:inline-flex;align-items:center;gap:6px;color:#24735a;white-space:nowrap}.withheld-contact{font-size:12px;color:#60746a}.file-hash{font-size:12px;color:#344b43;font-variant-numeric:tabular-nums}
+.contact-detail{display:inline-flex;align-items:center;gap:6px;color:#24735a;white-space:nowrap}.withheld-contact{font-size:12px;color:#60746a}.file-hash{font-size:12px;color:#344b43;font-variant-numeric:tabular-nums}.solution-link{color:#28627a;text-decoration:none}.solution-link:hover{text-decoration:underline}
 </style>

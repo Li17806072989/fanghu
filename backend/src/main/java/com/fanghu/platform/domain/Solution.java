@@ -1,6 +1,7 @@
 package com.fanghu.platform.domain;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.TableName;
 import java.util.List;
 import lombok.Data;
@@ -13,6 +14,9 @@ public class Solution extends BaseEntity {
     private Long categoryId;
     private String sceneTags;
     private String summary;
+    private String imageUrl;
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String detailContent;
     private String content;
     private String auditStatus;
     private String visibility;

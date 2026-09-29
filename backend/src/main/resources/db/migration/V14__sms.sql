@@ -1,0 +1,3 @@
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS phone VARCHAR(20) NULL, ADD COLUMN IF NOT EXISTS phone_verified TINYINT NOT NULL DEFAULT 0;
+ALTER TABLE sys_user ADD UNIQUE KEY IF NOT EXISTS uk_sys_user_phone(phone);
+CREATE TABLE IF NOT EXISTS fh_sms_send_record (id BIGINT PRIMARY KEY AUTO_INCREMENT,phone VARCHAR(20) NOT NULL,purpose VARCHAR(30) NOT NULL,provider VARCHAR(30) NOT NULL DEFAULT 'mock',request_id VARCHAR(64) NOT NULL,code_hash CHAR(64),status VARCHAR(20) NOT NULL DEFAULT 'SENT',failure_reason VARCHAR(255),ip_address VARCHAR(64),expires_at DATETIME,created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,INDEX idx_sms_phone_created(phone,created_at),INDEX idx_sms_request(request_id));

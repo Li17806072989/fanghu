@@ -3,7 +3,13 @@ node_modules/
 dist/
 .idea/
 *.iml
+.flattened-pom.xml
 .env
+backups/
+*.log
+frontend/dist/
+backend/target/
+.env.local
 *.log
 .runtime/
 
@@ -18,4 +24,5 @@ logs/
 *.rdb
 *.zip
 coverage/
+test-results/
 .DS_Store

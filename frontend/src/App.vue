@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { SwitchButton, UserFilled } from '@element-plus/icons-vue'
-import { api, clearSession, landingPath, onAuthChange, onHomepageContactChange, readRoles, readUsername, refreshSession } from './api'
+import { api, clearSession, landingPath, onAuthChange, onHomepageContactChange, readJson, readRoles, readUsername, refreshSession } from './api'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +14,7 @@ const roles = computed(() => {
   route.fullPath
   return readRoles()
 })
-const loggedIn = computed(() => Boolean(localStorage.getItem('fanghu-token')) && roles.value.length > 0)
+const loggedIn = computed(() => Boolean(sessionStorage.getItem('fanghu-token')) && roles.value.length > 0)
 const isSupplier = computed(() => roles.value.includes('supplier'))
 const isCustomer = computed(() => roles.value.includes('customer'))
 const isAdmin = computed(() => roles.value.includes('admin'))
@@ -30,7 +30,7 @@ onMounted(() => {
   stopContactListener = onHomepageContactChange(contact => { footerContact.value = contact })
   refreshSession()
   api('/api/homepage').then(async response => {
-    if (response.ok) footerContact.value = (await response.json()).contact
+    if (response.ok) footerContact.value = (await readJson(response, {})).contact
   }).catch(() => {})
 })
 onUnmounted(() => {
@@ -65,6 +65,7 @@ async function logout() {
           <el-avatar :size="28"><el-icon><UserFilled /></el-icon></el-avatar>
           <span class="account-name">{{ username }}</span>
         </RouterLink>
+        <RouterLink v-if="loggedIn" to="/account/security">账号安全</RouterLink>
         <button v-if="loggedIn" class="logout-button" type="button" @click="logout">
           <el-icon><SwitchButton /></el-icon>
           <span>退出登录</span>

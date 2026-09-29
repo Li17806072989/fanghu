@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/admin/homepage")
 @SaCheckPermission("platform:write")
-public class HomepageOperationsController {
+public class  HomepageOperationsController {
     private static final Set<String> AD_STATUSES = Set.of("DRAFT", "ACTIVE", "OFFLINE");
     private final AdSlotMapper ads;
     private final TopicMapper topics;

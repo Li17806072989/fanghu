@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { RouterLink as RouterLinkComponent, useRoute, useRouter } from 'vue-router'
 import { Filter, Picture, Refresh, Search } from '@element-plus/icons-vue'
-import { api } from '../api'
+import { api, readJson } from '../api'
 import '../catalog.css'
 
 const props = defineProps({ kind: { type: String, required: true } })
@@ -17,7 +17,7 @@ const filters = reactive({ keyword: '', status: 'APPROVED', dates: [], TOPIC: nu
 const trees = reactive({ TOPIC: [], EQUIPMENT: [], SCENE: [], TECH: [] })
 
 const isAdmin = computed(() => {
-  try { return JSON.parse(localStorage.getItem('fanghu-roles') || '[]').includes('admin') } catch { return false }
+  try { return JSON.parse(sessionStorage.getItem('fanghu-roles') || '[]').includes('admin') } catch { return false }
 })
 const config = computed(() => ({
   all: { title: '平台统一检索', description: '在专题、解决方案和资讯中按分类与发布时间交叉筛选。', type: 'ALL', dimensions: ['TOPIC', 'EQUIPMENT', 'SCENE', 'TECH'] },
@@ -32,7 +32,7 @@ const statusTypes = { APPROVED: 'success', PENDING: 'warning', REJECTED: 'danger
 const activeFilterCount = computed(() => config.value.dimensions.filter(type => filters[type]).length + (filters.dates?.length ? 1 : 0))
 
 function formatDate(value) { return value ? new Date(value).toLocaleString('zh-CN', { hour12: false }).slice(0, 16) : '时间待补充' }
-function detailPath(item) { return item.contentType === 'TOPIC' ? `/topics/${item.id}` : `/articles/${item.id}` }
+function detailPath(item) { return item.contentType === 'TOPIC' ? `/topics/${item.id}` : item.contentType === 'SOLUTION' ? `/solutions/${item.id}` : `/articles/${item.id}` }
 function opensSource(item) { return Boolean(item.sourceUrl) }
 function linkLabel(item) { return opensSource(item) ? `${item.title}（打开来源网站）` : `查看${typeLabels[item.contentType]}：${item.title}` }
 function linkProps(item) {
@@ -52,7 +52,7 @@ async function loadTrees() {
   treeLoading.value = true
   const responses = await Promise.all(Object.keys(trees).map(async type => {
     const response = await api(`/api/categories/taxonomy/tree?type=${type}`)
-    return [type, response.ok ? await response.json() : []]
+    return [type, response.ok ? await readJson(response, []) : []]
   }))
   for (const [type, nodes] of responses) trees[type] = nodes
   treeLoading.value = false
@@ -61,8 +61,9 @@ async function search({ updateUrl = true } = {}) {
   loading.value = true; error.value = ''
   try {
     const response = await api(`/api/search?${queryParams()}`)
-    const payload = await response.json()
-    if (!response.ok) throw new Error(payload.message || '暂时无法完成检索')
+    const payload = await readJson(response, null)
+    if (!response.ok) throw new Error(payload?.message || payload?.msg || '后端服务暂不可用，请稍后重试')
+    if (!payload || typeof payload !== 'object') throw new Error('后端服务未启动或返回了无效数据，请检查后端服务')
     result.value = payload
     if (updateUrl) {
       const query = filters.keyword.trim() ? { q: filters.keyword.trim() } : {}
@@ -123,15 +124,15 @@ watch(() => route.query.q, async value => {
         <el-alert v-if="error" :title="error" type="error" show-icon :closable="false"><template #default><el-button link type="primary" @click="search()">重新加载</el-button></template></el-alert>
         <div v-else-if="loading" class="search-loading"><el-skeleton v-for="index in 4" :key="index" :rows="3" animated /></div>
         <div v-else-if="result.records.length" class="catalog-list">
-          <article v-for="item in result.records" :key="`${item.contentType}-${item.id}`" class="catalog-item" :class="{ 'catalog-item--with-media': ['TOPIC', 'ARTICLE'].includes(item.contentType) }">
-            <figure v-if="['TOPIC', 'ARTICLE'].includes(item.contentType)" class="catalog-media">
+            <article v-for="item in result.records" :key="`${item.contentType}-${item.id}`" class="catalog-item" :class="{ 'catalog-item--with-media': ['TOPIC', 'SOLUTION', 'ARTICLE'].includes(item.contentType) }">
+            <figure v-if="['TOPIC', 'SOLUTION', 'ARTICLE'].includes(item.contentType)" class="catalog-media">
               <component
                 :is="opensSource(item) ? 'a' : RouterLinkComponent"
                 v-bind="linkProps(item)"
                 :aria-label="linkLabel(item)"
               >
-                <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.contentType === 'TOPIC' ? `${item.title}专题封面` : `${item.title}相关资讯图片`" loading="lazy">
-                <span v-else class="catalog-media-empty"><el-icon><Picture /></el-icon><span>{{ item.contentType === 'TOPIC' ? '专题封面待补充' : '资讯图片待补充' }}</span></span>
+                <img v-if="item.imageUrl" :src="item.imageUrl" :alt="item.contentType === 'TOPIC' ? `${item.title}专题封面` : item.contentType === 'SOLUTION' ? `${item.title}解决方案封面` : `${item.title}相关资讯图片`" loading="lazy">
+                <span v-else class="catalog-media-empty"><el-icon><Picture /></el-icon><span>{{ item.contentType === 'TOPIC' ? '专题封面待补充' : item.contentType === 'SOLUTION' ? '解决方案封面待补充' : '资讯图片待补充' }}</span></span>
               </component>
             </figure>
             <div class="catalog-main">
@@ -139,11 +140,11 @@ watch(() => route.query.q, async value => {
               <h2>
                 <component
                   :is="opensSource(item) ? 'a' : RouterLinkComponent"
-                  v-if="['TOPIC', 'ARTICLE'].includes(item.contentType)"
+                  v-if="['TOPIC', 'SOLUTION', 'ARTICLE'].includes(item.contentType)"
                   v-bind="linkProps(item)"
                   :aria-label="linkLabel(item)"
                 >{{ item.title }}</component>
-                <span v-else>{{ item.title }}</span>
+                <RouterLink v-else :to="detailPath(item)" :aria-label="linkLabel(item)">{{ item.title }}</RouterLink>
               </h2>
               <p>{{ item.summary || '摘要待补充' }}</p>
               <div v-if="item.categories.length" class="record-tags"><el-tag v-for="category in item.categories" :key="category" size="small" effect="plain">{{ category }}</el-tag></div>

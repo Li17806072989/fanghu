@@ -1,0 +1,11 @@
+package org.dromara.fanghu.service;
+import org.dromara.fanghu.domain.*; import org.dromara.fanghu.mapper.*; import org.springframework.stereotype.Service; import java.util.List;
+@Service public class PlatformService {
+ public final TopicService topics; public final ArticleService articles; public final SupplierService suppliers; public final DemandService demands; public final LeadService leads;
+ public PlatformService(TopicMapper t,ArticleMapper a,SupplierMapper s,DemandMapper d,LeadMapper l){topics=new TopicService(t);articles=new ArticleService(a);suppliers=new SupplierService(s);demands=new DemandService(d);leads=new LeadService(l);}
+ public static class TopicService {private final TopicMapper m; TopicService(TopicMapper m){this.m=m;} public List<Topic> list(){return m.selectList(null);} public boolean save(Topic x){return m.insert(x)>0;} public Topic getById(Long id){return m.selectById(id);} public boolean updateById(Topic x){return m.updateById(x)>0;}}
+ public static class ArticleService {private final ArticleMapper m; ArticleService(ArticleMapper m){this.m=m;} public List<Article> list(){return m.selectList(null);} public boolean save(Article x){return m.insert(x)>0;} public Article getById(Long id){return m.selectById(id);} public boolean updateById(Article x){return m.updateById(x)>0;}}
+ public static class SupplierService {private final SupplierMapper m; SupplierService(SupplierMapper m){this.m=m;} public List<SupplierCompany> list(){return m.selectList(null);} public boolean save(SupplierCompany x){return m.insert(x)>0;} public SupplierCompany getById(Long id){return m.selectById(id);} public boolean updateById(SupplierCompany x){return m.updateById(x)>0;}}
+ public static class DemandService {private final DemandMapper m; DemandService(DemandMapper m){this.m=m;} public List<Demand> list(){return m.selectList(null);} public boolean save(Demand x){return m.insert(x)>0;}}
+ public static class LeadService {private final LeadMapper m; LeadService(LeadMapper m){this.m=m;} public List<Lead> list(){return m.selectList(null);} public boolean save(Lead x){return m.insert(x)>0;} public Lead getById(Long id){return m.selectById(id);} public boolean updateById(Lead x){return m.updateById(x)>0;}}
+}

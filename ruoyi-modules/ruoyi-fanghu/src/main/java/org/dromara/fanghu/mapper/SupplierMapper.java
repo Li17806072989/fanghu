@@ -1,0 +1,1 @@
+package org.dromara.fanghu.mapper; import com.baomidou.mybatisplus.core.mapper.BaseMapper; import org.dromara.fanghu.domain.SupplierCompany; public interface SupplierMapper extends BaseMapper<SupplierCompany> { }

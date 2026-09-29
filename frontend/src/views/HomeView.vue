@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink as RouterLinkComponent, useRouter } from 'vue-router'
 import { ArrowRight, OfficeBuilding, Search } from '@element-plus/icons-vue'
-import { api, hasRole } from '../api'
+import { api, hasRole, readJson } from '../api'
 import '../home.css'
 import '../home-cover.css'
 
@@ -30,7 +30,7 @@ function contentLinkProps(sourceUrl, detailPath) {
 async function load() {
   try {
     const response = await api('/api/homepage')
-    if (response.ok) homepage.value = await response.json()
+    if (response.ok) homepage.value = await readJson(response, homepage.value)
   } finally { loading.value = false }
 }
 onMounted(load)

@@ -10,12 +10,15 @@ import com.fanghu.platform.mapper.SolutionMapper;
 import com.fanghu.platform.mapper.SupplierMapper;
 import com.fanghu.platform.mapper.SupplierMetricMapper;
 import com.fanghu.platform.mapper.SupplierMembershipMapper;
+import com.fanghu.platform.mapper.FileAssetMapper;
+import com.fanghu.platform.domain.FileAsset;
 import com.fanghu.platform.domain.SupplierCompany;
 import com.fanghu.platform.domain.SupplierMembership;
 import cn.dev33.satoken.stp.StpUtil;
 import com.fanghu.platform.service.WorkflowStatus;
 import com.fanghu.platform.service.AuditService;
 import com.fanghu.platform.service.TaxonomyService;
+import com.fanghu.platform.service.DetailContentService;
 import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,18 +39,23 @@ public class SolutionController {
     private final SupplierMapper suppliers;
     private final SupplierMetricMapper metrics;
     private final SupplierMembershipMapper memberships;
+    private final FileAssetMapper files;
     private final AuditService auditService;
     private final TaxonomyService taxonomy;
+    private final DetailContentService detailContents;
 
     public SolutionController(SolutionMapper solutions, SupplierMapper suppliers, SupplierMetricMapper metrics,
                               SupplierMembershipMapper memberships,
-                              AuditService auditService, TaxonomyService taxonomy) {
+                              AuditService auditService, TaxonomyService taxonomy, FileAssetMapper files,
+                              DetailContentService detailContents) {
         this.solutions = solutions;
         this.suppliers = suppliers;
         this.metrics = metrics;
         this.memberships = memberships;
+        this.files = files;
         this.auditService = auditService;
         this.taxonomy = taxonomy;
+        this.detailContents = detailContents;
     }
 
     @GetMapping
@@ -62,6 +70,14 @@ public class SolutionController {
         result.stream().map(Solution::getSupplierId).distinct().forEach(id ->
             metrics.addImpressions(id, (int) result.stream().filter(v -> id.equals(v.getSupplierId())).count()));
         return result;
+    }
+
+    @GetMapping("/{id}")
+    public Solution detail(@PathVariable Long id) {
+        Solution value = solutions.selectOne(new LambdaQueryWrapper<Solution>()
+            .eq(Solution::getId, id).eq(Solution::getAuditStatus, "APPROVED"));
+        if (value == null) throw new IllegalArgumentException("解决方案不存在或尚未发布");
+        return value;
     }
 
     @SaCheckRole(value = {"supplier", "admin"}, mode = SaMode.OR)
@@ -86,6 +102,9 @@ public class SolutionController {
         if (value.getTitle() == null || value.getTitle().isBlank() || value.getCategoryId() == null) {
             throw new IllegalArgumentException("方案标题和装备分类不能为空");
         }
+        if (value.getImageUrl() != null && !value.getImageUrl().isBlank()) {
+            throw new IllegalArgumentException("请先保存方案，再上传封面图片");
+        }
         if (!StpUtil.hasRole("admin")) {
             SupplierCompany owned = suppliers.selectOne(new LambdaQueryWrapper<SupplierCompany>()
                 .eq(SupplierCompany::getOwnerUserId, StpUtil.getLoginIdAsLong()));
@@ -97,6 +116,8 @@ public class SolutionController {
         value.setAuditStatus("PENDING");
         value.setVisibility("AUTHORIZED");
         solutions.insert(value);
+        value.setDetailContent(detailContents.normalize(value.getDetailContent(), "SOLUTION_DETAIL", value.getId()));
+        solutions.updateById(value);
         taxonomy.sync("SOLUTION", value.getId(), value.getCategoryId(), value.getTaxonomyIds());
         return value;
     }
@@ -117,7 +138,9 @@ public class SolutionController {
         value.setCategoryId(form.getCategoryId());
         value.setSceneTags(form.getSceneTags());
         value.setSummary(form.getSummary());
+        value.setImageUrl(validateImageUrl(form.getImageUrl(), id));
         value.setContent(form.getContent());
+        value.setDetailContent(detailContents.normalize(form.getDetailContent(), "SOLUTION_DETAIL", id));
         value.setAuditStatus("PENDING");
         solutions.updateById(value);
         taxonomy.sync("SOLUTION", value.getId(), value.getCategoryId(), form.getTaxonomyIds());
@@ -137,6 +160,23 @@ public class SolutionController {
             .eq(SupplierCompany::getId, solution.getSupplierId())
             .eq(SupplierCompany::getOwnerUserId, StpUtil.getLoginIdAsLong()));
         if (supplier == null) throw new IllegalArgumentException("无权修改该解决方案");
+    }
+
+    private String validateImageUrl(String imageUrl, Long solutionId) {
+        if (imageUrl == null || imageUrl.isBlank()) return null;
+        String prefix = "/api/storage/public/";
+        if (!imageUrl.startsWith(prefix)) throw new IllegalArgumentException("方案封面地址无效");
+        try {
+            Long fileId = Long.valueOf(imageUrl.substring(prefix.length()));
+            FileAsset asset = files.selectById(fileId);
+            if (asset == null || !"SOLUTION_IMAGE".equalsIgnoreCase(asset.getOwnerType())
+                || !solutionId.equals(asset.getOwnerId()) || !"PASSED".equals(asset.getScanStatus())) {
+                throw new IllegalArgumentException("方案封面文件无效");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("方案封面地址无效");
+        }
+        return imageUrl;
     }
 
     private List<Long> promotedSupplierIds() {

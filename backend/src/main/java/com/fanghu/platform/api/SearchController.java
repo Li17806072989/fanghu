@@ -121,7 +121,7 @@ public class SearchController {
             boolean promoted = promotedSupplierIds.contains(item.getSupplierId());
             return
             record(item.getId(), "SOLUTION", item.getTitle(), item.getSummary(), item.getAuditStatus(),
-                promoted ? "会员优先展示 · 平台审核后公开" : "平台审核后公开", item.getUpdatedAt(), labels.get(item.getId()), promoted);
+                promoted ? "会员优先展示 · 平台审核后公开" : "平台审核后公开", item.getUpdatedAt(), labels.get(item.getId()), promoted, null, item.getImageUrl());
         }).toList());
     }
 

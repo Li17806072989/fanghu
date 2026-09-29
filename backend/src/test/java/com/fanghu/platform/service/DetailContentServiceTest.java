@@ -2,6 +2,8 @@ package com.fanghu.platform.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -47,5 +49,14 @@ class DetailContentServiceTest {
         String json = "[{\"type\":\"TEXT\",\"text\":\"危险链接\",\"linkUrl\":\"javascript:alert(1)\"}]";
 
         assertThrows(IllegalArgumentException.class, () -> service.normalize(json, "TOPIC", 1L));
+    }
+
+    @Test
+    void detectsOnlyExactStructuredImageReference() {
+        String json = "[{\"type\":\"IMAGE\",\"imageUrl\":\"/api/storage/public/120\"}]";
+
+        assertTrue(service.referencesImage(json, 120L));
+        assertFalse(service.referencesImage(json, 12L));
+        assertFalse(service.referencesImage("[{\"type\":\"TEXT\",\"text\":\"/api/storage/public/120\"}]", 120L));
     }
 }

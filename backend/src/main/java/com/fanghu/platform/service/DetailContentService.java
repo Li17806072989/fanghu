@@ -47,6 +47,13 @@ public class DetailContentService {
         }
     }
 
+    public boolean referencesImage(String json, Long fileId) {
+        if (fileId == null) return false;
+        String expectedUrl = PUBLIC_IMAGE_PREFIX + fileId;
+        return decode(json).stream().anyMatch(block -> "IMAGE".equalsIgnoreCase(block.type())
+            && expectedUrl.equals(block.imageUrl()));
+    }
+
     private DetailBlock normalizeBlock(DetailBlock block, String ownerType, Long ownerId) {
         if (block == null || block.type() == null) throw new IllegalArgumentException("请选择详情内容类型");
         String type = block.type().trim().toUpperCase(Locale.ROOT);

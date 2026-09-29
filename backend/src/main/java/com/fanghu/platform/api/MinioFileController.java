@@ -5,6 +5,7 @@ import cn.dev33.satoken.stp.StpUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fanghu.platform.domain.CustomerProfile;
 import com.fanghu.platform.domain.AdSlot;
+import com.fanghu.platform.domain.Article;
 import com.fanghu.platform.domain.FileAsset;
 import com.fanghu.platform.domain.FileDownloadLog;
 import com.fanghu.platform.domain.Lead;
@@ -22,6 +23,7 @@ import com.fanghu.platform.mapper.SupplierMapper;
 import com.fanghu.platform.mapper.TopicMapper;
 import com.fanghu.platform.security.PlatformAccessDeniedException;
 import com.fanghu.platform.service.LeadWorkflowService;
+import com.fanghu.platform.service.DetailContentService;
 import com.fanghu.platform.service.VirusScanService;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
@@ -73,6 +75,7 @@ public class MinioFileController {
     private final LeadMapper leads;
     private final CustomerProfileMapper profiles;
     private final LeadWorkflowService leadWorkflow;
+    private final DetailContentService detailContents;
 
     public MinioFileController(@Value("${fanghu.minio.endpoint}") String endpoint,
                                @Value("${fanghu.minio.access-key}") String key,
@@ -82,7 +85,8 @@ public class MinioFileController {
                                VirusScanService scanner, FileAssetMapper files,
                                FileDownloadLogMapper downloadLogs, SolutionMapper solutions,
                                SupplierMapper suppliers, TopicMapper topics, ArticleMapper articles, AdSlotMapper ads, LeadMapper leads,
-                               CustomerProfileMapper profiles, LeadWorkflowService leadWorkflow) {
+                               CustomerProfileMapper profiles, LeadWorkflowService leadWorkflow,
+                               DetailContentService detailContents) {
         this.client = MinioClient.builder().endpoint(endpoint).credentials(key, secret).build();
         this.bucket = bucket;
         this.presignExpirySeconds = Math.max(60, Math.min(presignExpirySeconds, 604800));
@@ -97,6 +101,7 @@ public class MinioFileController {
         this.leads = leads;
         this.profiles = profiles;
         this.leadWorkflow = leadWorkflow;
+        this.detailContents = detailContents;
     }
 
     @SaCheckLogin
@@ -114,6 +119,7 @@ public class MinioFileController {
             temporaryFile = Files.createTempFile("fanghu-upload-", ".bin");
             file.transferTo(temporaryFile);
             if ("TOPIC".equals(normalizedOwnerType) || "ARTICLE".equals(normalizedOwnerType)
+                || "SOLUTION_IMAGE".equals(normalizedOwnerType) || "SOLUTION_DETAIL".equals(normalizedOwnerType)
                 || "AD".equals(normalizedOwnerType)) {
                 validateContentImage(file, temporaryFile);
             }
@@ -165,21 +171,11 @@ public class MinioFileController {
         FileAsset asset = files.selectById(id);
         if (asset == null || !("TOPIC".equalsIgnoreCase(asset.getOwnerType())
             || "ARTICLE".equalsIgnoreCase(asset.getOwnerType())
+            || "SOLUTION_IMAGE".equalsIgnoreCase(asset.getOwnerType()) || "SOLUTION_DETAIL".equalsIgnoreCase(asset.getOwnerType())
             || "AD".equalsIgnoreCase(asset.getOwnerType())) || !"PASSED".equals(asset.getScanStatus())) {
             throw new IllegalArgumentException("公开图片不存在");
         }
-        if ("TOPIC".equalsIgnoreCase(asset.getOwnerType()) && topics.selectById(asset.getOwnerId()) == null) {
-            throw new IllegalArgumentException("专题不存在");
-        }
-        if ("ARTICLE".equalsIgnoreCase(asset.getOwnerType()) && articles.selectById(asset.getOwnerId()) == null) {
-            throw new IllegalArgumentException("资讯不存在");
-        }
-        if ("AD".equalsIgnoreCase(asset.getOwnerType())) {
-            AdSlot ad = ads.selectById(asset.getOwnerId());
-            if (ad == null || !("/api/storage/public/" + asset.getId()).equals(ad.getImageUrl())) {
-                throw new IllegalArgumentException("广告图片不存在");
-            }
-        }
+        ensurePublicAsset(asset);
         response.setContentType(publicImageContentType(asset.getObjectKey()));
         response.setHeader("Cache-Control", "public, max-age=3600");
         response.setHeader("X-Content-Type-Options", "nosniff");
@@ -188,6 +184,35 @@ public class MinioFileController {
         } catch (Exception e) {
             throw new IllegalStateException("图片读取失败", e);
         }
+    }
+
+    void ensurePublicAsset(FileAsset asset) {
+        String publicUrl = "/api/storage/public/" + asset.getId();
+        String ownerType = asset.getOwnerType().toUpperCase(Locale.ROOT);
+        boolean accessible;
+        if ("TOPIC".equals(ownerType)) {
+            Topic topic = topics.selectById(asset.getOwnerId());
+            accessible = topic != null && "APPROVED".equals(topic.getStatus())
+                && (publicUrl.equals(topic.getCoverUrl()) || detailContents.referencesImage(topic.getDetailContent(), asset.getId()));
+        } else if ("ARTICLE".equals(ownerType)) {
+            Article article = articles.selectById(asset.getOwnerId());
+            accessible = article != null && "APPROVED".equals(article.getStatus())
+                && (publicUrl.equals(article.getImageUrl()) || detailContents.referencesImage(article.getDetailContent(), asset.getId()));
+        } else if ("SOLUTION_IMAGE".equals(ownerType)) {
+            Solution solution = solutions.selectById(asset.getOwnerId());
+            accessible = solution != null && "APPROVED".equals(solution.getAuditStatus())
+                && publicUrl.equals(solution.getImageUrl());
+        } else if ("SOLUTION_DETAIL".equals(ownerType)) {
+            Solution solution = solutions.selectById(asset.getOwnerId());
+            accessible = solution != null && "APPROVED".equals(solution.getAuditStatus())
+                && detailContents.referencesImage(solution.getDetailContent(), asset.getId());
+        } else if ("AD".equals(ownerType)) {
+            AdSlot ad = ads.selectById(asset.getOwnerId());
+            accessible = ad != null && "ACTIVE".equals(ad.getStatus()) && publicUrl.equals(ad.getImageUrl());
+        } else {
+            accessible = false;
+        }
+        if (!accessible) throw new IllegalArgumentException("公开图片不存在");
     }
 
     @SaCheckLogin
@@ -240,6 +265,20 @@ public class MinioFileController {
             if (!isAdmin()) throw new PlatformAccessDeniedException("仅内容运营人员可上传资讯图片");
             if (articles.selectById(id) == null) throw new IllegalArgumentException("资讯不存在");
             return;
+        }
+        if ("SOLUTION_IMAGE".equals(type)) {
+            Solution solution = solutions.selectById(id);
+            if (solution != null) {
+                ensureSupplierOwner(solution.getSupplierId());
+                return;
+            }
+        }
+        if ("SOLUTION_DETAIL".equals(type)) {
+            Solution solution = solutions.selectById(id);
+            if (solution != null) {
+                ensureSupplierOwner(solution.getSupplierId());
+                return;
+            }
         }
         if ("AD".equals(type)) {
             if (!isAdmin()) throw new PlatformAccessDeniedException("仅首页运营人员可上传广告图片");
